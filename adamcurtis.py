@@ -46,7 +46,8 @@ def main(url, output_dir):
     soup = BeautifulSoup(html)
     title = u' - '.join(soup.title.text.split(u' - ')[2:])
     output_dir = os.path.join(output_dir, title)
-    os.mkdir(output_dir)
+    media_dir = os.path.join(output_dir, 'media')
+    os.makedirs(media_dir)
     vid_identifiers = re.findall(
         '\"container\"\:\"(.{19})\"\,\"pid\"\:\"([a-z0-9]{8})\"', html)
     vid_identifiers = {k: v for k, v in vid_identifiers}
@@ -57,12 +58,20 @@ def main(url, output_dir):
         print 'Downloading video {0} of {1}...'.format(i+1, len(vid_containers)+1)
         download(pid)
         filename = '{0}.mp4'.format(pid)
-        shutil.move(filename, os.path.join(output_dir, filename))
+        shutil.move(filename, os.path.join(media_dir, filename))
 
         vid_html = VID_TEMPLATE.format(
-            width=WIDTH, height=HEIGHT, source='{}.mp4'.format(pid))
+            width=WIDTH, height=HEIGHT, source='media/{0}.mp4'.format(pid))
         vid = BeautifulSoup(vid_html).video
         container.replace_with(vid)
+
+    print 'Downloading images...'
+    for i, img in enumerate(post.findAll('img')):
+        data = requests.get(img['href']).raw
+        filename = 'image_{0}'.format(i)
+        img['href'] = 'media/{0}'.format(filename)
+        with open(os.path.join(media_dir, filename), 'wb') as f:
+            f.write(data)
     for script in post.findAll('script'):
         script.extract()
     post.find('div', {'class': 'cf'}).extract() # remove social media crap
