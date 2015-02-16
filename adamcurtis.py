@@ -14,8 +14,9 @@ VID_TEMPLATE = """<video width="{width}" height="{height}" controls>
     <source src="{source}" type="video/mp4">
     Your browser does not support the video tag.
 </video>"""
-WIDTH=614
-HEIGHT=345
+WIDTH = 614
+HEIGHT = 345
+VERBOSE = False
 
 
 def writable_dir(path):
@@ -39,6 +40,7 @@ def download(pid):
     p = subprocess.Popen(
         cmd.split(), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     p.wait()
+    return p.stdout.read()
 
 
 def main(url, output_dir):
@@ -56,8 +58,12 @@ def main(url, output_dir):
     for i, container in enumerate(vid_containers):
         pid = vid_identifiers['#{0}'.format(container['id'])]
         print 'Downloading video {0} of {1}...'.format(i+1, len(vid_containers)+1)
-        download(pid)
+        stdout = download(pid)
         filename = '{0}.mp4'.format(pid)
+        if VERBOSE or not os.path.exists(filename):
+            print stdout
+            if not os.path.exists(filename):
+                sys.exit(-1)
         shutil.move(filename, os.path.join(media_dir, filename))
 
         vid_html = VID_TEMPLATE.format(
@@ -94,5 +100,8 @@ if __name__ == '__main__':
         "location", help=("output directory. A subdirectory for each blogpost"
                           " will be made in this directory."),
         type=writable_dir)
+    parser.add_argument('--verbose', dest='verbose', action='store_true')
+    parser.set_defaults(verbose=False)
     args = parser.parse_args()
+    VERBOSE = args.verbose
     main(args.url, args.location)
