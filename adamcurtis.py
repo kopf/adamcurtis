@@ -67,11 +67,12 @@ def main(url, output_dir):
 
     print 'Downloading images...'
     for i, img in enumerate(post.findAll('img')):
-        data = requests.get(img['href']).raw
-        filename = 'image_{0}'.format(i)
-        img['href'] = 'media/{0}'.format(filename)
+        resp = requests.get(img['src'], stream=True)
+        filename = 'image_{0}.jpg'.format(i)
+        img['src'] = 'media/{0}'.format(filename)
         with open(os.path.join(media_dir, filename), 'wb') as f:
-            f.write(data)
+            resp.raw.decode_content = True
+            shutil.copyfileobj(resp.raw, f)
     for script in post.findAll('script'):
         script.extract()
     post.find('div', {'class': 'cf'}).extract() # remove social media crap
