@@ -27,6 +27,10 @@ def check_dependencies():
             raise RuntimeError(exe)
     if not os.path.exists('./get_iplayer'):
         raise RuntimeError('get_iplayer')
+    # Make sure get_iplayer has been initialised
+    if not os.path.exists(os.path.join(os.path.expanduser('~'), '.get_iplayer')):
+        print 'Initialising get_iplayer...'
+        subprocess.Popen(['perl', './get_iplayer'], stdout=subprocess.PIPE).wait()
 
 
 def writable_dir(path):
