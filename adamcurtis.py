@@ -6,6 +6,7 @@ import os
 import subprocess
 import shutil
 import sys
+from distutils.spawn import find_executable
 
 from bs4 import BeautifulSoup, Tag
 import requests
@@ -17,6 +18,15 @@ VID_TEMPLATE = """<video width="{width}" height="{height}" controls>
 WIDTH = 614
 HEIGHT = 345
 VERBOSE = False
+CMD = 'perl get_iplayer --force --pid={pid} --file-prefix={pid}'
+
+
+def check_dependencies():
+    for exe in ['rtmpdump', 'perl']:
+        if not find_executable(exe):
+            raise RuntimeError(exe)
+    if not os.path.exists('./get_iplayer'):
+        raise RuntimeError('get_iplayer')
 
 
 def writable_dir(path):
@@ -35,10 +45,8 @@ def writable_dir(path):
 
 
 def download(pid):
-    cmd = 'perl get_iplayer --force --pid={pid} --file-prefix={pid}'.format(
-        pid=pid)
     p = subprocess.Popen(
-        cmd.split(), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        CMD.format(pid=pid).split(), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     p.wait()
     return p.stdout.read()
 
@@ -57,7 +65,7 @@ def main(url, output_dir):
     vid_containers = post.findAll('div', {'class': 'smp'})
     for i, container in enumerate(vid_containers):
         pid = vid_identifiers['#{0}'.format(container['id'])]
-        print 'Downloading video {0} of {1}...'.format(i+1, len(vid_containers)+1)
+        print 'Downloading video {0} of {1}...'.format(i+1, len(vid_containers))
         stdout = download(pid)
         filename = '{0}.mp4'.format(pid)
         if VERBOSE or not os.path.exists(filename):
@@ -94,6 +102,12 @@ def main(url, output_dir):
 
 
 if __name__ == '__main__':
+    try:
+        check_dependencies()
+    except RuntimeError as e:
+        print ('Dependency "{0}" not found! Please install first.'
+               ' See the README for more help.').format(e)
+        sys.exit(-1)
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="blog post URL")
     parser.add_argument(
