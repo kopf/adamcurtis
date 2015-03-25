@@ -66,6 +66,9 @@ def main(url, output_dir):
         '\"container\"\:\"(.{19})\"\,\"pid\"\:\"([a-z0-9]{8})\"', html)
     vid_identifiers = {k: v for k, v in vid_identifiers}
     post = soup.find('article', {'itemprop': 'blogPost'})
+    if not post:
+        # old, archived format
+        post = soup.find('div', {'class': 'post_content'})
     vid_containers = post.findAll('div', {'class': 'smp'})
     for i, container in enumerate(vid_containers):
         pid = vid_identifiers['#{0}'.format(container['id'])]
@@ -85,7 +88,14 @@ def main(url, output_dir):
 
     print 'Downloading images...'
     for i, img in enumerate(post.findAll('img')):
-        resp = requests.get(img['src'], stream=True)
+        try:
+            resp = requests.get(img['src'], stream=True)
+        except requests.exceptions.MissingSchema:
+            if img['src'].startswith('/'):
+                resp = requests.get('http://www.bbc.co.uk%s' % img['src'],
+                                    stream=True)
+            else:
+                raise
         filename = 'image_{0}.jpg'.format(i)
         img['src'] = 'media/{0}'.format(filename)
         with open(os.path.join(media_dir, filename), 'wb') as f:
@@ -93,7 +103,9 @@ def main(url, output_dir):
             shutil.copyfileobj(resp.raw, f)
     for script in post.findAll('script'):
         script.extract()
-    post.find('div', {'class': 'cf'}).extract() # remove social media crap
+    social_media_buttons = post.find('div', {'class': 'cf'})
+    if social_media_buttons:
+        social_media_buttons.extract()
     for filename in os.listdir('assets'):
         shutil.copy(os.path.join('assets', filename), output_dir)
     with codecs.open(os.path.join(output_dir, 'blogpost.html'), 'w', 'utf8') as f:
